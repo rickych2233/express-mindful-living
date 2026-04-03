@@ -19,10 +19,11 @@ app.use(
 app.use(express.json());
 
 const pool = new Pool({
-  host: process.env.DB_HOST || "/var/run/postgresql",
-  port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER || "postgres",
-  database: process.env.DB_NAME || "mindful_living",
+  host: "127.0.0.1",
+  port: 5432,
+  user: "mindful_app",
+  password: "mindful123",
+  database: "mindful_living",
 });
 
 async function initDatabase() {
