@@ -25,7 +25,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || "mindful_living",
 });
 
-async function initDatabase() {root@srv1231126:/var/www/satyatech/express-mindful-living# sed -n '1,80p' index.js
+async function initDatabase() {
 const express = require("express");
 const dotenv = require("dotenv");
 const { Pool } = require("pg");
