@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API User</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Form Registrasi User</h1>
+    
+    <div id="message" class="message" style="display: none;"></div>
+    
+    <form id="userForm">
+        <div class="form-group">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        
+        <button type="submit">Register</button>
+    </form>
+
+    <h2>Daftar User</h2>
+    <button id="loadUsers">Load Users</button>
+    <div id="usersList"></div>
+
+    <h2>Update User</h2>
+    <form id="updateForm">
+        <div class="form-group">
+            <label for="updateId">User ID:</label>
+            <input type="number" id="updateId" name="id" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="updateName">Name:</label>
+            <input type="text" id="updateName" name="name" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="updateEmail">Email:</label>
+            <input type="email" id="updateEmail" name="email" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="updatePassword">Password (opsional):</label>
+            <input type="password" id="updatePassword" name="password">
+        </div>
+        
+        <button type="submit">Update User</button>
+    </form>
+
+    <script>
+        const API_URL = 'http://localhost:3001';
+
+        // Fungsi untuk membuat user baru
+        async function createUser(userData) {
+            try {
+                const response = await fetch(`${API_URL}/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal membuat user');
+                }
+
+                return data;
+            } catch (error) {
+                console.error('Error creating user:', error);
+                throw error;
+            }
+        }
+
+        // Fungsi untuk mendapatkan semua user
+        async function getAllUsers() {
+            try {
+                const response = await fetch(`${API_URL}/users`);
+                
+                if (!response.ok) {
+                    throw new Error('Gagal mengambil data users');
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error fetching users:', error);
+                throw error;
+            }
+        }
+
+        // Fungsi untuk update user
+        async function updateUser(id, userData) {
+            try {
+                const response = await fetch(`${API_URL}/users/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal mengupdate user');
+                }
+
+                return data;
+            } catch (error) {
+                console.error('Error updating user:', error);
+                throw error;
+            }
+        }
+
+        // Fungsi untuk toggle status active user
+        async function toggleUserActive(id) {
+            try {
+                const response = await fetch(`${API_URL}/users/${id}/toggle-active`, {
+                    method: 'PATCH',
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal mengubah status user');
+                }
+
+                const messageDiv = document.getElementById('message');
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'message success';
+                messageDiv.textContent = data.message;
+
+                // Refresh users list
+                document.getElementById('loadUsers').click();
+
+                return data;
+            } catch (error) {
+                console.error('Error toggling user active:', error);
+                
+                const messageDiv = document.getElementById('message');
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'message error';
+                messageDiv.textContent = error.message;
+                
+                throw error;
+            }
+        }
+
+        // Handle form submit
+        document.getElementById('userForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const messageDiv = document.getElementById('message');
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'message';
+            
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+            
+            try {
+                const result = await createUser(formData);
+                messageDiv.textContent = result.message;
+                messageDiv.classList.add('success');
+                document.getElementById('userForm').reset();
+            } catch (error) {
+                messageDiv.textContent = error.message;
+                messageDiv.classList.add('error');
+            }
+        });
+
+        // Handle load users button
+        document.getElementById('loadUsers').addEventListener('click', async function() {
+            const usersListDiv = document.getElementById('usersList');
+            
+            try {
+                const result = await getAllUsers();
+                
+                let usersHtml = '<ul>';
+                result.users.forEach(user => {
+                    usersHtml += `
+                        <li>
+                            <strong>ID: ${user.id}</strong> - ${user.name} (${user.email})
+                            <br>
+                            <small>Status: ${user.active ? 'Aktif' : 'Tidak Aktif'} | Created: ${new Date(user.created_at).toLocaleString()}</small>
+                            <br>
+                            <button onclick="fillUpdateForm(${user.id}, '${user.name}', '${user.email}', ${user.active})">Edit</button>
+                            <button onclick="toggleUserActive(${user.id})">${user.active ? 'Deactivate' : 'Activate'}</button>
+                        </li>
+                    `;
+                });
+                usersHtml += '</ul>';
+                
+                usersListDiv.innerHTML = usersHtml;
+            } catch (error) {
+                usersListDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        });
+
+        // Fungsi untuk mengisi form update
+        window.fillUpdateForm = function(id, name, email, active) {
+            document.getElementById('updateId').value = id;
+            document.getElementById('updateName').value = name;
+            document.getElementById('updateEmail').value = email;
+            document.getElementById('updatePassword').value = '';
+            
+            // Tambah checkbox untuk status active
+            let activeCheckbox = document.getElementById('updateActive');
+            if (!activeCheckbox) {
+                const activeDiv = document.createElement('div');
+                activeDiv.className = 'form-group';
+                activeDiv.innerHTML = `
+                    <label>
+                        <input type="checkbox" id="updateActive" name="active" ${active ? 'checked' : ''}>
+                        Active
+                    </label>
+                `;
+                document.getElementById('updatePassword').parentNode.parentNode.insertBefore(activeDiv, document.getElementById('updatePassword').parentNode.nextSibling);
+            } else {
+                activeCheckbox.checked = active;
+            }
+        };
+
+        // Handle update form submit
+        document.getElementById('updateForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const messageDiv = document.getElementById('message');
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'message';
+            
+            const id = document.getElementById('updateId').value;
+            const updateData = {
+                name: document.getElementById('updateName').value,
+                email: document.getElementById('updateEmail').value
+            };
+            
+            const password = document.getElementById('updatePassword').value;
+            if (password) {
+                updateData.password = password;
+            }
+            
+            const activeCheckbox = document.getElementById('updateActive');
+            if (activeCheckbox) {
+                updateData.active = activeCheckbox.checked;
+            }
+            
+            try {
+                const result = await updateUser(id, updateData);
+                messageDiv.textContent = result.message;
+                messageDiv.classList.add('success');
+                document.getElementById('updateForm').reset();
+                
+                // Refresh users list
+                document.getElementById('loadUsers').click();
+            } catch (error) {
+                messageDiv.textContent = error.message;
+                messageDiv.classList.add('error');
+            }
+        });
+    </script>
+</body>
+</html>
