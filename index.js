@@ -21,7 +21,7 @@ app.get("/", (req, res) => {
   res.send("API auth Express + PostgreSQL aktif");
 });
 
-app.use("/users", userRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/chapters", async (req, res) => {
   try {
