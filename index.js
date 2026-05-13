@@ -1,8 +1,11 @@
-const express = require("express");
 const dotenv = require("dotenv");
+dotenv.config();
+
+const express = require("express");
 const cors = require("cors");
 const { initDatabase } = require("./src/config/initDatabase");
 const userRoutes = require("./src/routes/userRoutes");
+const chapterRoutes = require("./src/routes/chapterRoutes");
 
 dotenv.config();
 
@@ -22,25 +25,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/users", userRoutes);
-
-app.get("/chapters", async (req, res) => {
-  try {
-    const { pool } = require("./src/config/database");
-    const chaptersResult = await pool.query(
-      "SELECT * FROM chapters ORDER BY chapter_order ASC"
-    );
-
-    return res.status(200).json({
-      message: "data chapters berhasil diambil",
-      chapters: chaptersResult.rows,
-    });
-  } catch (error) {
-    console.error("GET_CHAPTERS_ERROR", error);
-    return res.status(500).json({
-      message: "terjadi kesalahan server",
-    });
-  }
-});
+app.use("/api/chapters", chapterRoutes);
 
 (async () => {
   try {

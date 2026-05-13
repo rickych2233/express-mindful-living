@@ -192,9 +192,9 @@ class UserController {
         },
       });
     } catch (error) {
-      console.error("TOGGLE_USER_ACTIVE_ERROR", error);
       return res.status(500).json({
         message: "terjadi kesalahan server",
+        error: error,
       });
     }
   }
