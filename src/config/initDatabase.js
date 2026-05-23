@@ -33,6 +33,25 @@ async function initDatabase() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  await pool.query(`
+    ALTER TABLE chapters
+    ADD COLUMN IF NOT EXISTS thumbnail TEXT DEFAULT NULL
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sections (
+      id SERIAL PRIMARY KEY,
+      chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+      section_order INTEGER NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      type VARCHAR(50) NOT NULL DEFAULT 'Text',
+      status VARCHAR(50) NOT NULL DEFAULT 'Drafted',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(chapter_id, section_order)
+    )
+  `);
 }
 
 module.exports = { initDatabase };
