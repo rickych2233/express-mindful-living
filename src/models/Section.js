@@ -25,9 +25,23 @@ class Section {
 
   static async findByChapterId(chapterId) {
     const query = `
-      SELECT * FROM sections
-      WHERE chapter_id = $1
-      ORDER BY section_order ASC
+      SELECT s.*, 
+             COALESCE(
+               json_agg(
+                 json_build_object(
+                   'id', sc.id, 
+                   'title', sc.title, 
+                   'type', sc.type, 
+                   'is_required', sc.is_required, 
+                   'content_order', sc.content_order
+                 ) ORDER BY sc.content_order ASC
+               ) FILTER (WHERE sc.id IS NOT NULL), '[]'
+             ) as contents
+      FROM sections s
+      LEFT JOIN section_contents sc ON s.id = sc.section_id
+      WHERE s.chapter_id = $1
+      GROUP BY s.id
+      ORDER BY s.section_order ASC
     `;
 
     const result = await pool.query(query, [chapterId]);

@@ -6,16 +6,31 @@ const cors = require("cors");
 const { initDatabase } = require("./src/config/initDatabase");
 const userRoutes = require("./src/routes/userRoutes");
 const chapterRoutes = require("./src/routes/chapterRoutes");
-
-dotenv.config();
+const resourceRoutes = require("./src/routes/resourceRoutes");
+const practiceRoutes = require("./src/routes/practiceRoutes");
+const roleRoutes = require("./src/routes/roleRoutes");
+const communityRoutes = require("./src/routes/communityRoutes");
+const mediaRoutes = require("./src/routes/mediaRoutes");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+
+// Support multiple allowed origins for CORS
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim());
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -26,7 +41,11 @@ app.get("/", (req, res) => {
 
 app.use("/api/users", userRoutes);
 app.use("/api/chapters", chapterRoutes);
-
+app.use("/api/resources", resourceRoutes);
+app.use("/api/practices", practiceRoutes);
+app.use("/api/roles", roleRoutes);
+app.use("/api/community", communityRoutes);
+app.use("/api/media", mediaRoutes);
 (async () => {
   try {
     await initDatabase();
