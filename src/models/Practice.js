@@ -2,10 +2,10 @@ const { pool } = require("../config/database");
 
 class Practice {
   static async create(practiceData) {
-    const { title, goal, duration, sessions, category, status } = practiceData;
+    const { title, goal, duration, sessions, category, status, caption, thumbnail } = practiceData;
     const query = `
-      INSERT INTO practices (title, goal, duration, sessions, category, status)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO practices (title, goal, duration, sessions, category, status, caption, thumbnail)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
     const values = [
@@ -14,7 +14,9 @@ class Practice {
       duration,
       sessions,
       category,
-      status || 'Drafted'
+      status || 'Drafted',
+      caption || '',
+      thumbnail || null
     ];
     const { rows } = await pool.query(query, values);
     return rows[0];
@@ -45,7 +47,7 @@ class Practice {
   }
 
   static async update(id, updates) {
-    const allowedFields = ["title", "goal", "duration", "sessions", "category", "status"];
+    const allowedFields = ["title", "goal", "duration", "sessions", "category", "status", "caption", "thumbnail"];
     const setClause = [];
     const values = [];
     let paramIndex = 1;

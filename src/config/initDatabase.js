@@ -78,6 +78,12 @@ async function initDatabase() {
   `);
 
   await pool.query(`
+    ALTER TABLE practices
+    ADD COLUMN IF NOT EXISTS caption TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS thumbnail TEXT DEFAULT NULL
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS resources (
       id SERIAL PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
@@ -115,6 +121,56 @@ async function initDatabase() {
       date_added VARCHAR(50),
       status VARCHAR(50) DEFAULT 'Drafted',
       color VARCHAR(50),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    ALTER TABLE media_files
+    ADD COLUMN IF NOT EXISTS short_quote TEXT,
+    ADD COLUMN IF NOT EXISTS why_it_matters TEXT,
+    ADD COLUMN IF NOT EXISTS corpus_connection TEXT,
+    ADD COLUMN IF NOT EXISTS related_chapters JSONB,
+    ADD COLUMN IF NOT EXISTS critical_note TEXT,
+    ADD COLUMN IF NOT EXISTS integration_question TEXT,
+    ADD COLUMN IF NOT EXISTS thumbnail JSONB,
+    ADD COLUMN IF NOT EXISTS content_file JSONB
+  `);
+
+  // ===== Notes & Bookmarks =====
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS note_categories (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      color VARCHAR(50) NOT NULL,
+      amount VARCHAR(50) DEFAULT '0 discussions',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notes (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      avatar VARCHAR(255),
+      date VARCHAR(50),
+      chapter VARCHAR(100),
+      section VARCHAR(100),
+      note TEXT,
+      highlighted_passage TEXT,
+      categories JSONB,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS bookmarks (
+      id SERIAL PRIMARY KEY,
+      sentence TEXT,
+      chapter VARCHAR(100),
+      section VARCHAR(100),
+      date VARCHAR(50),
+      amount INTEGER,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);

@@ -11,6 +11,7 @@ const practiceRoutes = require("./src/routes/practiceRoutes");
 const roleRoutes = require("./src/routes/roleRoutes");
 const communityRoutes = require("./src/routes/communityRoutes");
 const mediaRoutes = require("./src/routes/mediaRoutes");
+const notesRoutes = require("./src/routes/notesRoutes");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -46,6 +47,7 @@ app.use("/api/practices", practiceRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api/media", mediaRoutes);
+app.use("/api", notesRoutes); // Provides /api/notes, /api/bookmarks, /api/note-categories
 (async () => {
   try {
     await initDatabase();
