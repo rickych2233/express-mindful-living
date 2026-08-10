@@ -46,12 +46,21 @@ async function initDatabase() {
       section_order INTEGER NOT NULL,
       title VARCHAR(255) NOT NULL,
       description TEXT NOT NULL DEFAULT '',
+      content TEXT DEFAULT '',
       type VARCHAR(50) NOT NULL DEFAULT 'Text',
       status VARCHAR(50) NOT NULL DEFAULT 'Drafted',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(chapter_id, section_order)
     )
   `);
+
+  // Patch: Add content column to sections if it doesn't exist
+  await pool.query(`
+    ALTER TABLE sections ADD COLUMN IF NOT EXISTS content TEXT DEFAULT '';
+  `).catch(err => {
+    // Ignore error if column already exists or syntax not supported
+    console.log("Note: content column might already exist.");
+  });
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS section_contents (
@@ -80,7 +89,10 @@ async function initDatabase() {
   await pool.query(`
     ALTER TABLE practices
     ADD COLUMN IF NOT EXISTS caption TEXT DEFAULT '',
-    ADD COLUMN IF NOT EXISTS thumbnail TEXT DEFAULT NULL
+    ADD COLUMN IF NOT EXISTS thumbnail TEXT DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS sessions_data JSONB DEFAULT '[]'::jsonb,
+    ADD COLUMN IF NOT EXISTS related_chapters JSONB DEFAULT '[]'::jsonb,
+    ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0
   `);
 
   await pool.query(`
@@ -175,7 +187,30 @@ async function initDatabase() {
     )
   `);
 
-  // ===== Roles & Permissions =====
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS practice_categories (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) UNIQUE NOT NULL,
+      order_index INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Alter table to add order_index if it doesn't exist (for existing tables)
+  try {
+    await pool.query(`ALTER TABLE practice_categories ADD COLUMN order_index INT DEFAULT 0`);
+  } catch (err) {
+    // Column might already exist, ignore error
+  }
+
+  // Insert default categories if none exist
+  await pool.query(`
+    INSERT INTO practice_categories (name)
+    SELECT * FROM unnest(ARRAY['Breathwork', 'Cardiac Coherence', 'Mindfulness', 'Focus', 'Grounding', 'Sleep', 'Nervous System Reset', 'Energy / Vitality'])
+    WHERE NOT EXISTS (SELECT 1 FROM practice_categories)
+    ON CONFLICT DO NOTHING
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS roles (
       id SERIAL PRIMARY KEY,

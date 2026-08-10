@@ -7,6 +7,7 @@ const router = express.Router();
 // Chapter collection routes
 router.post("/", ChapterController.createChapter);
 router.get("/", ChapterController.getAllChapters);
+router.patch("/reorder", ChapterController.reorderChapters);
 
 // Section routes (must be BEFORE /:id to avoid Express 5 route conflicts)
 router.get("/:chapterId/sections", SectionController.getSectionsByChapter);

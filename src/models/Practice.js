@@ -2,10 +2,10 @@ const { pool } = require("../config/database");
 
 class Practice {
   static async create(practiceData) {
-    const { title, goal, duration, sessions, category, status, caption, thumbnail } = practiceData;
+    const { title, goal, duration, sessions, category, status, caption, thumbnail, sessions_data, related_chapters } = practiceData;
     const query = `
-      INSERT INTO practices (title, goal, duration, sessions, category, status, caption, thumbnail)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO practices (title, goal, duration, sessions, category, status, caption, thumbnail, sessions_data, related_chapters)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
     const values = [
@@ -16,7 +16,9 @@ class Practice {
       category,
       status || 'Drafted',
       caption || '',
-      thumbnail || null
+      thumbnail || null,
+      sessions_data ? JSON.stringify(sessions_data) : '[]',
+      related_chapters ? JSON.stringify(related_chapters) : '[]'
     ];
     const { rows } = await pool.query(query, values);
     return rows[0];
@@ -40,14 +42,14 @@ class Practice {
       query += " WHERE " + conditions.join(" AND ");
     }
     
-    query += " ORDER BY created_at DESC";
+    query += " ORDER BY order_index ASC, created_at DESC";
 
     const { rows } = await pool.query(query, values);
     return rows;
   }
 
   static async update(id, updates) {
-    const allowedFields = ["title", "goal", "duration", "sessions", "category", "status", "caption", "thumbnail"];
+    const allowedFields = ["title", "goal", "duration", "sessions", "category", "status", "caption", "thumbnail", "sessions_data", "related_chapters"];
     const setClause = [];
     const values = [];
     let paramIndex = 1;
@@ -55,7 +57,11 @@ class Practice {
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
         setClause.push(`${field} = $${paramIndex}`);
-        values.push(updates[field]);
+        let val = updates[field];
+        if ((field === 'sessions_data' || field === 'related_chapters') && typeof val === 'object') {
+          val = JSON.stringify(val);
+        }
+        values.push(val);
         paramIndex++;
       }
     }
@@ -77,6 +83,23 @@ class Practice {
     const query = "DELETE FROM practices WHERE id = $1 RETURNING *";
     const { rows } = await pool.query(query, [id]);
     return rows[0];
+  }
+
+  static async reorder(practiceIds) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (let i = 0; i < practiceIds.length; i++) {
+        await client.query('UPDATE practices SET order_index = $1 WHERE id = $2', [i, practiceIds[i]]);
+      }
+      await client.query('COMMIT');
+      return true;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 }
 

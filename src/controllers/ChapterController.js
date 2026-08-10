@@ -3,7 +3,9 @@ const Chapter = require("../models/Chapter");
 class ChapterController {
   static async createChapter(req, res) {
     try {
-      const { title, description, status } = req.body;
+      const { title, description, status, thumbnail, sections } = req.body;
+      
+      console.log("CREATE_CHAPTER_PAYLOAD", { title, sections });
 
       if (!title || !description) {
         return res.status(400).json({
@@ -15,7 +17,24 @@ class ChapterController {
         title,
         description,
         status,
+        thumbnail,
       });
+
+      if (sections && Array.isArray(sections)) {
+        const Section = require("../models/Section");
+        for (const sec of sections) {
+          if (sec.title && sec.title.trim() !== "") {
+            await Section.create({
+              chapter_id: newChapter.id,
+              title: sec.title,
+              description: sec.description || "",
+              content: sec.content || "",
+              type: sec.type || "Text",
+              status: status || "Drafted"
+            });
+          }
+        }
+      }
 
       return res.status(201).json({
         message: "chapter berhasil dibuat",
@@ -72,7 +91,9 @@ class ChapterController {
   static async updateChapter(req, res) {
     try {
       const { id } = req.params;
-      const { title, description, status } = req.body;
+      const { title, description, status, thumbnail, sections } = req.body;
+      
+      console.log("UPDATE_CHAPTER_PAYLOAD", { id, sections });
 
       if (!title || !description) {
         return res.status(400).json({
@@ -91,7 +112,34 @@ class ChapterController {
         title,
         description,
         status: status || existingChapter.status,
+        thumbnail,
       });
+
+      if (sections && Array.isArray(sections)) {
+        const Section = require("../models/Section");
+        for (const sec of sections) {
+          if (sec.title && sec.title.trim() !== "") {
+            if (sec.id) {
+              await Section.update(sec.id, {
+                title: sec.title,
+                description: sec.description || "",
+                content: sec.content || "",
+                type: sec.type || "Text",
+                status: status || existingChapter.status
+              });
+            } else {
+              await Section.create({
+                chapter_id: updatedChapter.id,
+                title: sec.title,
+                description: sec.description || "",
+                content: sec.content || "",
+                type: sec.type || "Text",
+                status: status || existingChapter.status
+              });
+            }
+          }
+        }
+      }
 
       return res.status(200).json({
         message: "chapter berhasil diupdate",
@@ -179,6 +227,28 @@ class ChapterController {
       });
     } catch (error) {
       console.error("SET_CHAPTER_STATUS_ERROR", error);
+      return res.status(500).json({
+        message: "terjadi kesalahan server",
+      });
+    }
+  }
+  static async reorderChapters(req, res) {
+    try {
+      const { chapterIds } = req.body;
+      
+      if (!Array.isArray(chapterIds)) {
+        return res.status(400).json({
+          message: "chapterIds harus berupa array",
+        });
+      }
+
+      await Chapter.reorder(chapterIds);
+
+      return res.status(200).json({
+        message: "Urutan chapter berhasil diperbarui",
+      });
+    } catch (error) {
+      console.error("REORDER_CHAPTERS_ERROR", error);
       return res.status(500).json({
         message: "terjadi kesalahan server",
       });

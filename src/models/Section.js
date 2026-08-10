@@ -2,7 +2,7 @@ const { pool } = require("../config/database");
 
 class Section {
   static async create(sectionData) {
-    const { chapter_id, title, description = "", type = "Text", status = "Drafted" } = sectionData;
+    const { chapter_id, title, description = "", content = "", type = "Text", status = "Drafted" } = sectionData;
 
     const getNextOrderQuery = `
       SELECT COALESCE(MAX(section_order), 0) + 1 as next_order
@@ -14,12 +14,12 @@ class Section {
     const nextOrder = orderResult.rows[0].next_order;
 
     const query = `
-      INSERT INTO sections (chapter_id, section_order, title, description, type, status)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO sections (chapter_id, section_order, title, description, content, type, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
 
-    const result = await pool.query(query, [chapter_id, nextOrder, title, description, type, status]);
+    const result = await pool.query(query, [chapter_id, nextOrder, title, description, content, type, status]);
     return result.rows[0];
   }
 
@@ -59,16 +59,16 @@ class Section {
   }
 
   static async update(id, sectionData) {
-    const { title, description, type, status } = sectionData;
+    const { title, description, content, type, status } = sectionData;
 
     const query = `
       UPDATE sections
-      SET title = $1, description = $2, type = $3, status = $4
-      WHERE id = $5
+      SET title = $1, description = $2, content = $3, type = $4, status = $5
+      WHERE id = $6
       RETURNING *
     `;
 
-    const result = await pool.query(query, [title, description, type, status, id]);
+    const result = await pool.query(query, [title, description, content, type, status, id]);
     return result.rows[0];
   }
 

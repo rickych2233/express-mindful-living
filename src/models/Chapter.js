@@ -2,7 +2,7 @@ const { pool } = require("../config/database");
 
 class Chapter {
   static async create(chapterData) {
-    const { title, description, status = "Drafted", sections } = chapterData;
+    const { title, description, status = "Drafted", sections, thumbnail } = chapterData;
 
     const getNextOrderQuery = `
       SELECT COALESCE(MAX(chapter_order), 0) + 1 as next_order
@@ -13,12 +13,12 @@ class Chapter {
     const nextOrder = orderResult.rows[0].next_order;
 
     const query = `
-      INSERT INTO chapters (chapter_order, title, description, status)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO chapters (chapter_order, title, description, status, thumbnail)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
 
-    const result = await pool.query(query, [nextOrder, title, description, status]);
+    const result = await pool.query(query, [nextOrder, title, description, status, thumbnail || null]);
     const chapter = result.rows[0];
 
     // Create initial sections if provided
@@ -81,16 +81,16 @@ class Chapter {
   }
 
   static async update(id, chapterData) {
-    const { title, description, status } = chapterData;
+    const { title, description, status, thumbnail } = chapterData;
 
     const query = `
       UPDATE chapters
-      SET title = $1, description = $2, status = $3
-      WHERE id = $4
+      SET title = $1, description = $2, status = $3, thumbnail = COALESCE($4, thumbnail)
+      WHERE id = $5
       RETURNING *
     `;
 
-    const result = await pool.query(query, [title, description, status, id]);
+    const result = await pool.query(query, [title, description, status, thumbnail || null, id]);
     return result.rows[0];
   }
 
@@ -130,6 +130,37 @@ class Chapter {
 
     const result = await pool.query(query, [status, id]);
     return result.rows[0];
+  }
+
+  static async reorder(chapterIds) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Step 1: Set to negative to avoid UNIQUE constraint violations during swap
+      for (let i = 0; i < chapterIds.length; i++) {
+        await client.query(
+          `UPDATE chapters SET chapter_order = $1 WHERE id = $2`,
+          [-(i + 1), chapterIds[i]]
+        );
+      }
+      
+      // Step 2: Set to the actual positive sequence
+      for (let i = 0; i < chapterIds.length; i++) {
+        await client.query(
+          `UPDATE chapters SET chapter_order = $1 WHERE id = $2`,
+          [i + 1, chapterIds[i]]
+        );
+      }
+      
+      await client.query('COMMIT');
+      return true;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 }
 

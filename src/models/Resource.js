@@ -13,10 +13,10 @@ class Resource {
       caption,
       category,
       status || 'Drafted',
-      thumbnail || null,
+      typeof thumbnail === 'object' && thumbnail !== null ? JSON.stringify(thumbnail) : thumbnail || null,
       content_type || 'Text',
-      content_texts || '{}',
-      content_files || '{}'
+      typeof content_texts === 'object' && content_texts !== null ? JSON.stringify(content_texts) : content_texts || '{}',
+      typeof content_files === 'object' && content_files !== null ? JSON.stringify(content_files) : content_files || '{}'
     ];
     const { rows } = await pool.query(query, values);
     return rows[0];
@@ -55,7 +55,8 @@ class Resource {
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
         setClause.push(`${field} = $${paramIndex}`);
-        values.push(updates[field]);
+        const val = updates[field];
+        values.push(typeof val === 'object' && val !== null ? JSON.stringify(val) : val);
         paramIndex++;
       }
     }
