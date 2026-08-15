@@ -13,6 +13,7 @@ const communityRoutes = require("./src/routes/communityRoutes");
 const mediaRoutes = require("./src/routes/mediaRoutes");
 const notesRoutes = require("./src/routes/notesRoutes");
 const uploadRoutes = require("./src/routes/uploadRoutes");
+const dashboardRoutes = require("./src/routes/dashboardRoutes");
 const path = require("path");
 
 const app = express();
@@ -52,6 +53,7 @@ app.use("/api/community", communityRoutes);
 app.use("/api/media", mediaRoutes);
 app.use("/api", notesRoutes); // Provides /api/notes, /api/bookmarks, /api/note-categories
 app.use("/api/upload", uploadRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 (async () => {
   try {
