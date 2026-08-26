@@ -33,6 +33,7 @@ class Section {
                    'title', sc.title, 
                    'type', sc.type, 
                    'is_required', sc.is_required, 
+                   'url', sc.url,
                    'content_order', sc.content_order
                  ) ORDER BY sc.content_order ASC
                ) FILTER (WHERE sc.id IS NOT NULL), '[]'
@@ -106,6 +107,40 @@ class Section {
 
     const result = await pool.query(query, [chapterId]);
     return result.rows[0].count;
+  }
+
+  static async setContents(sectionId, contents) {
+    // Delete existing
+    await pool.query('DELETE FROM section_contents WHERE section_id = $1', [sectionId]);
+    
+    if (!contents || !Array.isArray(contents) || contents.length === 0) {
+      return [];
+    }
+
+    const values = [];
+    const flatValues = [];
+    let i = 1;
+    
+    contents.forEach((c, idx) => {
+      values.push(`($${i++}, $${i++}, $${i++}, $${i++}, $${i++}, $${i++})`);
+      flatValues.push(
+        sectionId,
+        idx + 1, // content_order
+        c.title || '',
+        c.type || 'Text',
+        c.is_required !== undefined ? c.is_required : true,
+        c.url || null
+      );
+    });
+
+    const query = `
+      INSERT INTO section_contents (section_id, content_order, title, type, is_required, url)
+      VALUES ${values.join(', ')}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, flatValues);
+    return result.rows;
   }
 }
 

@@ -24,7 +24,7 @@ class ChapterController {
         const Section = require("../models/Section");
         for (const sec of sections) {
           if (sec.title && sec.title.trim() !== "") {
-            await Section.create({
+            const newSec = await Section.create({
               chapter_id: newChapter.id,
               title: sec.title,
               description: sec.description || "",
@@ -32,6 +32,9 @@ class ChapterController {
               type: sec.type || "Text",
               status: status || "Drafted"
             });
+            if (sec.contents && Array.isArray(sec.contents)) {
+              await Section.setContents(newSec.id, sec.contents);
+            }
           }
         }
       }
@@ -127,8 +130,11 @@ class ChapterController {
                 type: sec.type || "Text",
                 status: status || existingChapter.status
               });
+              if (sec.contents && Array.isArray(sec.contents)) {
+                await Section.setContents(sec.id, sec.contents);
+              }
             } else {
-              await Section.create({
+              const newSec = await Section.create({
                 chapter_id: updatedChapter.id,
                 title: sec.title,
                 description: sec.description || "",
@@ -136,6 +142,9 @@ class ChapterController {
                 type: sec.type || "Text",
                 status: status || existingChapter.status
               });
+              if (sec.contents && Array.isArray(sec.contents)) {
+                await Section.setContents(newSec.id, sec.contents);
+              }
             }
           }
         }

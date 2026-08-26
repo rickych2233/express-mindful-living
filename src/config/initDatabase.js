@@ -70,9 +70,16 @@ async function initDatabase() {
       title VARCHAR(255) NOT NULL,
       type VARCHAR(50) NOT NULL DEFAULT 'Text',
       is_required BOOLEAN NOT NULL DEFAULT true,
+      url TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  await pool.query(`
+    ALTER TABLE section_contents ADD COLUMN IF NOT EXISTS url TEXT;
+  `).catch(err => {
+    console.log("Note: url column might already exist.");
+  });
   await pool.query(`
     CREATE TABLE IF NOT EXISTS practices (
       id SERIAL PRIMARY KEY,
