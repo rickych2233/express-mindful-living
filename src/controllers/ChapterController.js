@@ -263,6 +263,29 @@ class ChapterController {
       });
     }
   }
+  static async reorderSections(req, res) {
+    try {
+      const { sectionIds } = req.body;
+      
+      if (!Array.isArray(sectionIds)) {
+        return res.status(400).json({
+          message: "sectionIds harus berupa array",
+        });
+      }
+
+      const Section = require("../models/Section");
+      await Section.reorder(sectionIds);
+
+      return res.status(200).json({
+        message: "Urutan section berhasil diperbarui",
+      });
+    } catch (error) {
+      console.error("REORDER_SECTIONS_ERROR", error);
+      return res.status(500).json({
+        message: "terjadi kesalahan server",
+      });
+    }
+  }
 }
 
 module.exports = ChapterController;

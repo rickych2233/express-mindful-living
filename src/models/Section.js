@@ -142,6 +142,35 @@ class Section {
     const result = await pool.query(query, flatValues);
     return result.rows;
   }
+
+  static async reorder(sectionIds) {
+    if (!sectionIds || sectionIds.length === 0) return true;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      // Step 1: Set to negative to avoid UNIQUE constraint violations during swap
+      for (let i = 0; i < sectionIds.length; i++) {
+        await client.query(
+          "UPDATE sections SET section_order = $1 WHERE id = $2",
+          [-(i + 1), sectionIds[i]]
+        );
+      }
+      // Step 2: Set to the actual positive sequence
+      for (let i = 0; i < sectionIds.length; i++) {
+        await client.query(
+          "UPDATE sections SET section_order = $1 WHERE id = $2",
+          [i + 1, sectionIds[i]]
+        );
+      }
+      await client.query("COMMIT");
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 module.exports = Section;

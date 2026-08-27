@@ -8,6 +8,7 @@ const router = express.Router();
 router.post("/", ChapterController.createChapter);
 router.get("/", ChapterController.getAllChapters);
 router.patch("/reorder", ChapterController.reorderChapters);
+router.put("/:id/sections/reorder", ChapterController.reorderSections);
 
 // Section routes (must be BEFORE /:id to avoid Express 5 route conflicts)
 router.get("/:chapterId/sections", SectionController.getSectionsByChapter);
