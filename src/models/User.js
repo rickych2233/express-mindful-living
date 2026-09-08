@@ -16,7 +16,7 @@ class User {
 
   static async findAll() {
     const query = `
-      SELECT id, name, email, donation_amount, active, created_at 
+      SELECT id, name, email, donation_amount, active, biometric_enabled, created_at 
       FROM users 
       ORDER BY created_at DESC
     `;
@@ -27,7 +27,7 @@ class User {
 
   static async findById(id) {
     const query = `
-      SELECT id, name, email, donation_amount, active, created_at 
+      SELECT id, name, email, donation_amount, active, biometric_enabled, created_at 
       FROM users 
       WHERE id = $1
     `;

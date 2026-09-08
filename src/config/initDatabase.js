@@ -299,19 +299,19 @@ async function initDatabase() {
     {
       name: "Content Editor",
       description: "Manage chapters & practices",
-      isSystem: true,
+      isSystem: false,
       perms: ["view-dashboard", "view-chapter", "edit-chapters", "view-practice", "edit-practice"],
     },
     {
       name: "Viewer",
       description: "Read-only access",
-      isSystem: true,
+      isSystem: false,
       perms: ["view-dashboard", "view-chapter", "view-practice", "view-users", "view-roles"],
     },
     {
       name: "Moderator",
       description: "Manage community",
-      isSystem: true,
+      isSystem: false,
       perms: ["view-dashboard", "view-community", "edit-community", "delete-community", "view-notes", "edit-notes"],
     },
   ];
