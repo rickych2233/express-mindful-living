@@ -24,19 +24,20 @@ async function initDatabase() {
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS chapters (
-      id SERIAL PRIMARY KEY,
-      chapter_order INTEGER NOT NULL UNIQUE,
-      title VARCHAR(255) NOT NULL,
-      description TEXT NOT NULL,
-      status VARCHAR(50) NOT NULL DEFAULT 'Published',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS biometric_enabled BOOLEAN NOT NULL DEFAULT false
   `);
 
   await pool.query(`
-    ALTER TABLE chapters
-    ADD COLUMN IF NOT EXISTS thumbnail TEXT DEFAULT NULL
+    CREATE TABLE IF NOT EXISTS chapters (
+      id SERIAL PRIMARY KEY,
+      chapter_order INTEGER NOT NULL UNIQUE,
+      title JSONB NOT NULL,
+      description JSONB NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'Published',
+      thumbnail TEXT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 
   await pool.query(`
@@ -44,11 +45,11 @@ async function initDatabase() {
       id SERIAL PRIMARY KEY,
       chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
       section_order INTEGER NOT NULL,
-      title VARCHAR(255) NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      content TEXT DEFAULT '',
+      title JSONB NOT NULL,
+      description JSONB NOT NULL DEFAULT '{"en": ""}',
+      content JSONB DEFAULT '{"en": ""}',
       type VARCHAR(50) NOT NULL DEFAULT 'Text',
-      status VARCHAR(50) NOT NULL DEFAULT 'Drafted',
+      status VARCHAR(50) NOT NULL DEFAULT 'Published',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(chapter_id, section_order)
     )
@@ -228,6 +229,30 @@ async function initDatabase() {
     )
   `);
 
+  // Migrate existing tables to JSONB for multi-language support
+  // Safely migrate columns to JSONB only if they are not already JSONB
+  async function migrateToJsonb(tableName, columns) {
+    for (const col of columns) {
+      try {
+        const check = await pool.query(
+          `SELECT data_type FROM information_schema.columns WHERE table_name = $1 AND column_name = $2`,
+          [tableName, col]
+        );
+        if (check.rows.length > 0 && check.rows[0].data_type !== 'jsonb') {
+          // Drop default if exists to prevent casting errors
+          await pool.query(`ALTER TABLE ${tableName} ALTER COLUMN ${col} DROP DEFAULT`);
+          await pool.query(`ALTER TABLE ${tableName} ALTER COLUMN ${col} TYPE JSONB USING jsonb_build_object('en', ${col})`);
+        }
+      } catch (err) {
+        console.error(`Migration error for ${tableName}.${col}:`, err.message);
+      }
+    }
+  }
+
+  await migrateToJsonb('chapters', ['title', 'description']);
+  await migrateToJsonb('sections', ['title', 'description', 'content']);
+  await migrateToJsonb('media_files', ['short_quote', 'why_it_matters', 'corpus_connection', 'critical_note', 'integration_question']);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS permissions (
       id SERIAL PRIMARY KEY,
@@ -296,24 +321,6 @@ async function initDatabase() {
   const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(([key]) => key);
   const DEFAULT_ROLES = [
     { name: "Super Admin", description: "Full access to all modules", isSystem: true, perms: "ALL" },
-    {
-      name: "Content Editor",
-      description: "Manage chapters & practices",
-      isSystem: false,
-      perms: ["view-dashboard", "view-chapter", "edit-chapters", "view-practice", "edit-practice"],
-    },
-    {
-      name: "Viewer",
-      description: "Read-only access",
-      isSystem: false,
-      perms: ["view-dashboard", "view-chapter", "view-practice", "view-users", "view-roles"],
-    },
-    {
-      name: "Moderator",
-      description: "Manage community",
-      isSystem: false,
-      perms: ["view-dashboard", "view-community", "edit-community", "delete-community", "view-notes", "edit-notes"],
-    },
   ];
 
   for (const role of DEFAULT_ROLES) {
@@ -338,6 +345,12 @@ async function initDatabase() {
       }
     }
   }
+
+  // Delete all other roles except 'Super Admin'
+  await pool.query(`
+    DELETE FROM roles
+    WHERE name != 'Super Admin'
+  `);
 }
 
 module.exports = { initDatabase };
