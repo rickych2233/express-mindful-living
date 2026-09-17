@@ -8,11 +8,8 @@ const pool = new Pool({
 });
 async function test() {
   try {
-    const res = await pool.query(`INSERT INTO chapters (chapter_order, title, description) VALUES (99, $1, $2) RETURNING *`, [{en: 'obj title'}, {en: 'obj desc'}]);
-    console.log("Insert result:", res.rows[0]);
-    await pool.query(`DELETE FROM chapters WHERE id = $1`, [res.rows[0].id]);
-  } catch (e) {
-    console.error("DB Error:", e);
+    const res = await pool.query(`SELECT data_type FROM information_schema.columns WHERE table_name = 'chapters' AND column_name = 'title'`);
+    console.log("title column type:", res.rows[0].data_type);
   } finally {
     pool.end();
   }

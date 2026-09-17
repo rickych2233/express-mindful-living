@@ -7,10 +7,20 @@ class SectionController {
       const { chapterId } = req.params;
       const { title, description, type, status } = req.body;
 
-      if (!title) {
+      let finalTitle = title;
+      if (typeof title === "string") {
+        finalTitle = { en: title.trim() };
+      }
+
+      if (!finalTitle || (typeof finalTitle === 'string' && finalTitle.trim() === '') || (typeof finalTitle === 'object' && (!finalTitle.en || finalTitle.en.trim() === ''))) {
         return res.status(400).json({
           message: "title harus diisi",
         });
+      }
+
+      let finalDescription = description || "";
+      if (typeof finalDescription === "string") {
+        finalDescription = finalDescription.trim() === "" ? { en: "" } : { en: finalDescription.trim() };
       }
 
       const chapter = await Chapter.findById(chapterId);
@@ -22,8 +32,8 @@ class SectionController {
 
       const newSection = await Section.create({
         chapter_id: chapterId,
-        title,
-        description: description || "",
+        title: finalTitle,
+        description: finalDescription,
         type: type || "Text",
         status: status || "Drafted",
       });
@@ -70,7 +80,12 @@ class SectionController {
       const { id } = req.params;
       const { title, description, type, status } = req.body;
 
-      if (!title) {
+      let finalTitle = title;
+      if (typeof title === "string") {
+        finalTitle = { en: title.trim() };
+      }
+
+      if (!finalTitle || (typeof finalTitle === 'string' && finalTitle.trim() === '') || (typeof finalTitle === 'object' && (!finalTitle.en || finalTitle.en.trim() === ''))) {
         return res.status(400).json({
           message: "title harus diisi",
         });
@@ -83,9 +98,14 @@ class SectionController {
         });
       }
 
+      let finalDescription = description || existingSection.description;
+      if (typeof finalDescription === "string") {
+        finalDescription = finalDescription.trim() === "" ? { en: "" } : { en: finalDescription.trim() };
+      }
+
       const updatedSection = await Section.update(id, {
-        title,
-        description: description || existingSection.description,
+        title: finalTitle,
+        description: finalDescription,
         type: type || existingSection.type,
         status: status || existingSection.status,
       });

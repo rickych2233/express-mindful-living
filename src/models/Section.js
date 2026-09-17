@@ -2,7 +2,7 @@ const { pool } = require("../config/database");
 
 class Section {
   static async create(sectionData) {
-    const { chapter_id, title, description = "", content = "", type = "Text", status = "Drafted" } = sectionData;
+    const { chapter_id, title, description = "", content = null, type = "Text", status = "Drafted" } = sectionData;
 
     const getNextOrderQuery = `
       SELECT COALESCE(MAX(section_order), 0) + 1 as next_order
@@ -60,7 +60,7 @@ class Section {
   }
 
   static async update(id, sectionData) {
-    const { title, description, content, type, status } = sectionData;
+    const { title, description, content = null, type, status } = sectionData;
 
     const query = `
       UPDATE sections
