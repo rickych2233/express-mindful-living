@@ -188,7 +188,7 @@ class DashboardController {
         chaptersList = (chaptersListResult.rows || []).map(row => ({
           id:            row.id ?? null,
           chapterOrder:  parseInt(row.chapter_order, 10) || 0,
-          title:         safeStr(row.title, "Untitled Chapter"),
+          title:         row.title || "Untitled Chapter",
           status:        safeStr(row.status, "Drafted"),
         }));
       } catch (_) {}
