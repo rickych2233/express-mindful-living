@@ -73,6 +73,28 @@ class DashboardController {
         LIMIT 5
       `);
 
+      // ── 6.5 Donation Summary ──────────────────────────────────────────────
+      let totalContributions = 0;
+      let highestContribution = 0;
+      let averageDonation = 0;
+      let recurringDonors = 60; // Default placeholder
+      try {
+        const donationSummaryResult = await pool.query(`
+          SELECT 
+            SUM(donation_amount) as total,
+            MAX(donation_amount) as highest,
+            AVG(donation_amount) as average
+          FROM users
+          WHERE donation_amount IS NOT NULL AND donation_amount > 0
+        `);
+        if (donationSummaryResult.rows && donationSummaryResult.rows.length > 0) {
+           const r = donationSummaryResult.rows[0];
+           totalContributions = safeFloat(r.total);
+           highestContribution = safeFloat(r.highest);
+           averageDonation = safeFloat(r.average);
+        }
+      } catch (_) {}
+
       // ── 7. Pending Reports ────────────────────────────────────────────────
       let pendingReportsCount = 0;
       let recentReports = [];
@@ -222,6 +244,12 @@ class DashboardController {
           totalPractices:             safeCount(practicesResult.rows),
         },
         donations: {
+          summary: {
+            total: totalContributions,
+            highest: highestContribution,
+            average: averageDonation,
+            recurring: recurringDonors
+          },
           topSupporters: (topSupportersResult.rows || []).map(row => ({
             name:   safeStr(row.name, "Anonymous"),
             amount: safeFloat(row.donation_amount),
