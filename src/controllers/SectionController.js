@@ -5,7 +5,7 @@ class SectionController {
   static async createSection(req, res) {
     try {
       const { chapterId } = req.params;
-      const { title, description, type, status } = req.body;
+      const { title, description, type, status, content, contents } = req.body;
 
       let finalTitle = title;
       if (typeof title === "string") {
@@ -23,6 +23,12 @@ class SectionController {
         finalDescription = finalDescription.trim() === "" ? { en: "" } : { en: finalDescription.trim() };
       }
 
+      // Kolom content bertipe JSONB — string mentah harus dibungkus agar insert tidak gagal
+      let finalContent = content || null;
+      if (typeof finalContent === "string") {
+        finalContent = finalContent.trim() === "" ? null : { en: finalContent.trim() };
+      }
+
       const chapter = await Chapter.findById(chapterId);
       if (!chapter) {
         return res.status(404).json({
@@ -34,9 +40,14 @@ class SectionController {
         chapter_id: chapterId,
         title: finalTitle,
         description: finalDescription,
+        content: finalContent,
         type: type || "Text",
         status: status || "Drafted",
       });
+
+      if (Array.isArray(contents)) {
+        newSection.contents = await Section.setContents(newSection.id, contents);
+      }
 
       return res.status(201).json({
         message: "section berhasil dibuat",
@@ -78,7 +89,7 @@ class SectionController {
   static async updateSection(req, res) {
     try {
       const { id } = req.params;
-      const { title, description, type, status } = req.body;
+      const { title, description, type, status, content, contents } = req.body;
 
       let finalTitle = title;
       if (typeof title === "string") {
@@ -103,12 +114,23 @@ class SectionController {
         finalDescription = finalDescription.trim() === "" ? { en: "" } : { en: finalDescription.trim() };
       }
 
+      // Kolom content bertipe JSONB — string mentah harus dibungkus agar update tidak gagal
+      let finalContent = content !== undefined ? content : existingSection.content;
+      if (typeof finalContent === "string") {
+        finalContent = finalContent.trim() === "" ? null : { en: finalContent.trim() };
+      }
+
       const updatedSection = await Section.update(id, {
         title: finalTitle,
         description: finalDescription,
+        content: finalContent,
         type: type || existingSection.type,
         status: status || existingSection.status,
       });
+
+      if (Array.isArray(contents)) {
+        updatedSection.contents = await Section.setContents(id, contents);
+      }
 
       return res.status(200).json({
         message: "section berhasil diupdate",
