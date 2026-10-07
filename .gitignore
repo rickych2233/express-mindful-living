@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment variables (jangan commit kredensial!)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Upload artifacts (file hasil upload runtime)
+uploads/*.mp4
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.png
+uploads/*.webm
+uploads/*.mov
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.save
+*.bak
