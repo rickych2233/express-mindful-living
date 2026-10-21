@@ -6,6 +6,10 @@ class SectionController {
     try {
       const { chapterId } = req.params;
       const { title, description, type, status, content, contents } = req.body;
+      if (contents !== undefined && (!Array.isArray(contents) || contents.some(c => !c || typeof c !== 'object' || Array.isArray(c)))) {
+        return res.status(400).json({ message: 'contents harus berupa daftar lampiran' });
+      }
+
 
       let finalTitle = title;
       if (typeof title === "string") {
@@ -36,18 +40,14 @@ class SectionController {
         });
       }
 
-      const newSection = await Section.create({
+      const newSection = await Section.saveWithContents(null, {
         chapter_id: chapterId,
         title: finalTitle,
         description: finalDescription,
         content: finalContent,
         type: type || "Text",
         status: status || "Drafted",
-      });
-
-      if (Array.isArray(contents)) {
-        newSection.contents = await Section.setContents(newSection.id, contents);
-      }
+      }, contents, chapterId);
 
       return res.status(201).json({
         message: "section berhasil dibuat",
@@ -55,8 +55,8 @@ class SectionController {
       });
     } catch (error) {
       console.error("CREATE_SECTION_ERROR", error);
-      return res.status(500).json({
-        message: "terjadi kesalahan server",
+      return res.status(error.status || 500).json({
+        message: error.status ? error.message : "terjadi kesalahan server",
       });
     }
   }
@@ -80,8 +80,8 @@ class SectionController {
       });
     } catch (error) {
       console.error("GET_SECTIONS_ERROR", error);
-      return res.status(500).json({
-        message: "terjadi kesalahan server",
+      return res.status(error.status || 500).json({
+        message: error.status ? error.message : "terjadi kesalahan server",
       });
     }
   }
@@ -90,6 +90,10 @@ class SectionController {
     try {
       const { id } = req.params;
       const { title, description, type, status, content, contents } = req.body;
+      if (contents !== undefined && (!Array.isArray(contents) || contents.some(c => !c || typeof c !== 'object' || Array.isArray(c)))) {
+        return res.status(400).json({ message: 'contents harus berupa daftar lampiran' });
+      }
+
 
       let finalTitle = title;
       if (typeof title === "string") {
@@ -120,17 +124,13 @@ class SectionController {
         finalContent = finalContent.trim() === "" ? null : { en: finalContent.trim() };
       }
 
-      const updatedSection = await Section.update(id, {
+      const updatedSection = await Section.saveWithContents(id, {
         title: finalTitle,
         description: finalDescription,
         content: finalContent,
         type: type || existingSection.type,
         status: status || existingSection.status,
-      });
-
-      if (Array.isArray(contents)) {
-        updatedSection.contents = await Section.setContents(id, contents);
-      }
+      }, contents, req.params.chapterId);
 
       return res.status(200).json({
         message: "section berhasil diupdate",
@@ -138,8 +138,8 @@ class SectionController {
       });
     } catch (error) {
       console.error("UPDATE_SECTION_ERROR", error);
-      return res.status(500).json({
-        message: "terjadi kesalahan server",
+      return res.status(error.status || 500).json({
+        message: error.status ? error.message : "terjadi kesalahan server",
       });
     }
   }
@@ -161,8 +161,8 @@ class SectionController {
       });
     } catch (error) {
       console.error("DELETE_SECTION_ERROR", error);
-      return res.status(500).json({
-        message: "terjadi kesalahan server",
+      return res.status(error.status || 500).json({
+        message: error.status ? error.message : "terjadi kesalahan server",
       });
     }
   }
@@ -186,8 +186,8 @@ class SectionController {
       });
     } catch (error) {
       console.error("TOGGLE_SECTION_STATUS_ERROR", error);
-      return res.status(500).json({
-        message: "terjadi kesalahan server",
+      return res.status(error.status || 500).json({
+        message: error.status ? error.message : "terjadi kesalahan server",
       });
     }
   }

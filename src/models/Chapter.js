@@ -1,7 +1,7 @@
 const { pool } = require("../config/database");
 
 class Chapter {
-  static async create(chapterData) {
+  static async create(chapterData, db = pool) {
     const { title, description, status = "Drafted", sections, thumbnail } = chapterData;
 
     const getNextOrderQuery = `
@@ -9,7 +9,7 @@ class Chapter {
       FROM chapters
     `;
 
-    const orderResult = await pool.query(getNextOrderQuery);
+    const orderResult = await db.query(getNextOrderQuery);
     const nextOrder = orderResult.rows[0].next_order;
 
     const query = `
@@ -18,14 +18,14 @@ class Chapter {
       RETURNING *
     `;
 
-    const result = await pool.query(query, [nextOrder, title, description, status, thumbnail || null]);
+    const result = await db.query(query, [nextOrder, title, description, status, thumbnail || null]);
     const chapter = result.rows[0];
 
     // Create initial sections if provided
     if (Array.isArray(sections) && sections.length > 0) {
       for (let i = 0; i < sections.length; i++) {
         const sec = sections[i];
-        await pool.query(
+        await db.query(
           `INSERT INTO sections (chapter_id, section_order, title, description, type, status)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [
@@ -80,7 +80,7 @@ class Chapter {
     return result.rows[0];
   }
 
-  static async update(id, chapterData) {
+  static async update(id, chapterData, db = pool) {
     const { title, description, status, thumbnail } = chapterData;
 
     const query = `
@@ -90,7 +90,7 @@ class Chapter {
       RETURNING *
     `;
 
-    const result = await pool.query(query, [title, description, status, thumbnail || null, id]);
+    const result = await db.query(query, [title, description, status, thumbnail || null, id]);
     return result.rows[0];
   }
 

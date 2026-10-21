@@ -82,6 +82,12 @@ async function initDatabase() {
     console.log("Note: url column might already exist.");
   });
   await pool.query(`
+    ALTER TABLE section_contents
+    ADD COLUMN IF NOT EXISTS duration TEXT,
+    ADD COLUMN IF NOT EXISTS instructions TEXT
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS practices (
       id SERIAL PRIMARY KEY,
       title VARCHAR(255) NOT NULL,

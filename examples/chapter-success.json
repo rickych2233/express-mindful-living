@@ -1,0 +1,46 @@
+{
+  "note": "Saved and read back through local HTTP API using real, isolated PostgreSQL. Media URLs are illustrative fixtures.",
+  "message": "data sections berhasil diambil",
+  "sections": [
+    {
+      "id": 1,
+      "chapter_id": 1,
+      "section_order": 1,
+      "title": {
+        "en": "Mindful breathing",
+        "id": "Pernapasan sadar"
+      },
+      "description": {
+        "en": ""
+      },
+      "content": {
+        "en": "<p><strong>Pause and breathe.</strong></p><div class=\"media-embed\" data-type=\"image\" data-index=\"0\"></div><p>Observe your breath.</p><div class=\"media-embed\" data-type=\"video\" data-index=\"1\"></div>",
+        "id": "<p><strong>Berhenti sejenak dan bernapas.</strong></p><div class=\"media-embed\" data-type=\"image\" data-index=\"0\"></div><p>Amati napas Anda.</p><div class=\"media-embed\" data-type=\"video\" data-index=\"1\"></div>"
+      },
+      "type": "Text",
+      "status": "Drafted",
+      "contents": [
+        {
+          "id": 1,
+          "title": "Sunrise",
+          "type": "image",
+          "is_required": true,
+          "url": "/uploads/example-sunrise.jpg",
+          "content_order": 1,
+          "duration": null,
+          "instructions": null
+        },
+        {
+          "id": 2,
+          "title": "Breathing",
+          "type": "video",
+          "is_required": true,
+          "url": "/uploads/example-breathing.mp4",
+          "content_order": 2,
+          "duration": "5 Minutes",
+          "instructions": "Breathe slowly."
+        }
+      ]
+    }
+  ]
+}

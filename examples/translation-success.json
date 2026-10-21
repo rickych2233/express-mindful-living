@@ -1,0 +1,7 @@
+{
+  "source": "en",
+  "target": "id",
+  "provider": "google-translate-api-x (real request)",
+  "input": "<p><strong>Pause and breathe.</strong></p><div class=\"media-embed\" data-type=\"image\" data-index=\"0\"></div><p>Observe your breath.</p><div class=\"media-embed\" data-type=\"video\" data-index=\"1\"></div>",
+  "output": "<p><strong>Berhenti sejenak dan bernapas.</strong></p><div class=\"media-embed\" data-type=\"image\" data-index=\"0\"></div><p>Amati napas Anda.</p><div class=\"media-embed\" data-type=\"video\" data-index=\"1\"></div>"
+}

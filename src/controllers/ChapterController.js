@@ -1,4 +1,28 @@
 const Chapter = require("../models/Chapter");
+const Section = require("../models/Section");
+
+async function saveSections(chapterId, sections, status, client) {
+  if (sections === undefined) return;
+  if (!Array.isArray(sections)) {
+    const error = new Error('sections harus berupa daftar'); error.status = 400; throw error;
+  }
+  for (const sec of sections) {
+    if (!sec || typeof sec !== 'object') {
+      const error = new Error('section tidak valid'); error.status = 400; throw error;
+    }
+    const title = typeof sec.title === 'string' ? { en: sec.title.trim() } : sec.title;
+    if (!title || typeof title.en !== 'string' || !title.en.trim()) {
+      const error = new Error('title section harus diisi'); error.status = 400; throw error;
+    }
+    if (sec.contents !== undefined && (!Array.isArray(sec.contents) || sec.contents.some(c => !c || typeof c !== 'object' || Array.isArray(c)))) {
+      const error = new Error('contents harus berupa daftar lampiran'); error.status = 400; throw error;
+    }
+    const description = typeof sec.description === 'string' ? {en: sec.description} : (sec.description || {en:''});
+    const content = typeof sec.content === 'string' ? {en: sec.content} : (sec.content || null);
+    await Section.saveWithContents(sec.id || null, {chapter_id: chapterId, title, description, content,
+      type: sec.type || 'Text', status}, sec.contents, chapterId, client);
+  }
+}
 
 class ChapterController {
   static async createChapter(req, res) {
@@ -13,32 +37,11 @@ class ChapterController {
         });
       }
 
-      const newChapter = await Chapter.create({
-        title,
-        description,
-        status,
-        thumbnail,
+      const newChapter = await Section.transaction(async client => {
+        const chapter = await Chapter.create({title, description, status, thumbnail}, client);
+        await saveSections(chapter.id, sections, status || 'Drafted', client);
+        return chapter;
       });
-
-      if (sections && Array.isArray(sections)) {
-        const Section = require("../models/Section");
-        for (const sec of sections) {
-          const secTitleForCheck = typeof sec.title === 'string' ? sec.title : (sec.title && sec.title.en ? sec.title.en : "");
-          if (secTitleForCheck.trim() !== "") {
-            const newSec = await Section.create({
-              chapter_id: newChapter.id,
-              title: sec.title,
-              description: sec.description || "",
-              content: sec.content || null,
-              type: sec.type || "Text",
-              status: status || "Drafted"
-            });
-            if (sec.contents && Array.isArray(sec.contents)) {
-              await Section.setContents(newSec.id, sec.contents);
-            }
-          }
-        }
-      }
 
       return res.status(201).json({
         message: "chapter berhasil dibuat",
@@ -46,8 +49,8 @@ class ChapterController {
       });
     } catch (error) {
       console.error("CREATE_CHAPTER_ERROR", error);
-      return res.status(500).json({
-        message: "terjadi kesalahan server",
+      return res.status(error.status || 500).json({
+        message: error.status ? error.message : "terjadi kesalahan server",
       });
     }
   }
@@ -112,45 +115,12 @@ class ChapterController {
         });
       }
 
-      const updatedChapter = await Chapter.update(id, {
-        title,
-        description,
-        status: status || existingChapter.status,
-        thumbnail,
+      const updatedChapter = await Section.transaction(async client => {
+        const chapter = await Chapter.update(id, {title, description,
+          status: status || existingChapter.status, thumbnail}, client);
+        await saveSections(chapter.id, sections, status || existingChapter.status, client);
+        return chapter;
       });
-
-      if (sections && Array.isArray(sections)) {
-        const Section = require("../models/Section");
-        for (const sec of sections) {
-          const secTitleForCheck = typeof sec.title === 'string' ? sec.title : (sec.title && sec.title.en ? sec.title.en : "");
-          if (secTitleForCheck.trim() !== "") {
-            if (sec.id) {
-              await Section.update(sec.id, {
-                title: sec.title,
-                description: sec.description || "",
-                content: sec.content || null,
-                type: sec.type || "Text",
-                status: status || existingChapter.status
-              });
-              if (sec.contents && Array.isArray(sec.contents)) {
-                await Section.setContents(sec.id, sec.contents);
-              }
-            } else {
-              const newSec = await Section.create({
-                chapter_id: updatedChapter.id,
-                title: sec.title,
-                description: sec.description || "",
-                content: sec.content || null,
-                type: sec.type || "Text",
-                status: status || existingChapter.status
-              });
-              if (sec.contents && Array.isArray(sec.contents)) {
-                await Section.setContents(newSec.id, sec.contents);
-              }
-            }
-          }
-        }
-      }
 
       return res.status(200).json({
         message: "chapter berhasil diupdate",
@@ -158,8 +128,8 @@ class ChapterController {
       });
     } catch (error) {
       console.error("UPDATE_CHAPTER_ERROR", error);
-      return res.status(500).json({
-        message: "terjadi kesalahan server",
+      return res.status(error.status || 500).json({
+        message: error.status ? error.message : "terjadi kesalahan server",
       });
     }
   }
