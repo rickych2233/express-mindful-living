@@ -21,16 +21,36 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 
 // Support multiple allowed origins for CORS
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
-  .split(",")
-  .map((o) => o.trim());
+const defaultOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://187.124.129.55",
+  "https://admin.satyatech.org",
+  "http://admin.satyatech.org",
+  "https://satyatech.org",
+  "https://www.satyatech.org",
+  "http://satyatech.org",
+  "http://www.satyatech.org",
+];
+const allowedOrigins = Array.from(
+  new Set([
+    ...defaultOrigins,
+    ...(process.env.FRONTEND_ORIGIN || "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
+  ])
+);
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, curl, etc.)
+      // Allow requests with no origin (mobile apps, curl, same-origin GETs, etc.)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+      if (
+        allowedOrigins.includes(origin) ||
+        /^https?:\/\/([a-z0-9-]+\.)?satyatech\.org$/i.test(origin)
+      ) {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS"));

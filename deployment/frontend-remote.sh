@@ -30,7 +30,7 @@ find "$STAGE" -maxdepth 1 -type f ! -name index.html -exec cp {} "$LIVE/" \;
 cp "$STAGE/index.html" "$LIVE/.index.$RELEASE.html"
 mv "$LIVE/.index.$RELEASE.html" "$LIVE/index.html"
 nginx -s reload
-curl --silent --fail https://www.satyatech.org/dashboard/chapter > "$BACKUP/frontend-health.html"
+curl --silent --fail https://admin.satyatech.org/dashboard/chapter > "$BACKUP/frontend-health.html"
 cmp "$STAGE/index.html" "$BACKUP/frontend-health.html"
 trap - ERR
 printf 'FRONTEND_DEPLOYED=%s\nBACKUP=%s\n' "$RELEASE" "$BACKUP"
