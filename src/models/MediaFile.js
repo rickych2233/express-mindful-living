@@ -14,10 +14,10 @@ class MediaFile {
   }
 
   static async create(data) {
-    const { name, author, format, category, date_added, status, color, shortQuote, whyItMatters, corpusConnection, relatedChapters, criticalNote, integrationQuestion, thumbnail, contentFile } = data;
+    const { name, author, format, category, date_added, status, color, shortQuote, whyItMatters, corpusConnection, relatedChapters, criticalNote, integrationQuestion, textContent, thumbnail, contentFile } = data;
     const result = await pool.query(
-      `INSERT INTO media_files (name, author, format, category, date_added, status, color, short_quote, why_it_matters, corpus_connection, related_chapters, critical_note, integration_question, thumbnail, content_file)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+      `INSERT INTO media_files (name, author, format, category, date_added, status, color, short_quote, why_it_matters, corpus_connection, related_chapters, critical_note, integration_question, text_content, thumbnail, content_file)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
       [
         name || null,
         author || null,
@@ -32,6 +32,7 @@ class MediaFile {
         relatedChapters ? JSON.stringify(relatedChapters) : null,
         criticalNote || null,
         integrationQuestion || null,
+        textContent || null,
         thumbnail ? JSON.stringify(thumbnail) : null,
         contentFile ? JSON.stringify(contentFile) : null
       ]
@@ -49,7 +50,7 @@ class MediaFile {
       date_added: "date_added", status: "status", color: "color",
       shortQuote: "short_quote", whyItMatters: "why_it_matters",
       corpusConnection: "corpus_connection", criticalNote: "critical_note",
-      integrationQuestion: "integration_question"
+      integrationQuestion: "integration_question", textContent: "text_content"
     };
 
     for (const key in data) {

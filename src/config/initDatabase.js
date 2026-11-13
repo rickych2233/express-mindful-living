@@ -159,6 +159,7 @@ async function initDatabase() {
     ADD COLUMN IF NOT EXISTS related_chapters JSONB,
     ADD COLUMN IF NOT EXISTS critical_note TEXT,
     ADD COLUMN IF NOT EXISTS integration_question TEXT,
+    ADD COLUMN IF NOT EXISTS text_content JSONB,
     ADD COLUMN IF NOT EXISTS thumbnail JSONB,
     ADD COLUMN IF NOT EXISTS content_file JSONB
   `);
