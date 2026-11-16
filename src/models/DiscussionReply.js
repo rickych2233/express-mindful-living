@@ -14,18 +14,21 @@ class DiscussionReply {
   }
 
   static async create(data) {
-    const { discussion_id, name, avatar, message, date, reported, status } = data;
-    const query = "INSERT INTO discussion_replies (discussion_id, name, avatar, message, date, reported, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *";
-    const { rows } = await pool.query(query, [discussion_id, name, avatar, message, date, reported, status || 'Visible']);
+    const { discussion_id, name, avatar, message, date, reported, status, user_id } = data;
+    const query = "INSERT INTO discussion_replies (discussion_id, name, avatar, message, date, reported, status, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *";
+    const { rows } = await pool.query(query, [discussion_id, name, avatar, message, date, reported, status || 'Visible', user_id]);
     return rows[0];
   }
 
   static async update(id, data) {
+    // Column whitelist — never interpolate raw body keys into SQL.
+    const allowed = ["message", "status"];
     const fields = [];
     const values = [];
     let idx = 1;
 
-    for (const key in data) {
+    for (const key of allowed) {
+      if (data[key] === undefined) continue;
       if (data[key] !== undefined) {
         fields.push(`${key} = $${idx}`);
         values.push(data[key]);

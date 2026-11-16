@@ -1,14 +1,19 @@
 const express = require("express");
 const UserController = require("../controllers/UserController");
+const { authenticate, authorize } = require("../middleware/auth");
 
 const router = express.Router();
 
+// Public: mobile registration + login happens via /api/auth.
 router.post("/", UserController.createUser);
-router.get("/", UserController.getAllUsers);
-router.get("/:id", UserController.getUserById);
-router.put("/:id", UserController.updateUser);
-router.delete("/:id", UserController.deleteUser);
-router.patch("/:id/toggle-active", UserController.toggleUserActive);
-router.patch("/:id/active", UserController.setUserActive);
+
+// Admin-only user management.
+const adminOnly = [authenticate, authorize("admin")];
+router.get("/", adminOnly, UserController.getAllUsers);
+router.get("/:id", adminOnly, UserController.getUserById);
+router.put("/:id", adminOnly, UserController.updateUser);
+router.delete("/:id", adminOnly, UserController.deleteUser);
+router.patch("/:id/toggle-active", adminOnly, UserController.toggleUserActive);
+router.patch("/:id/active", adminOnly, UserController.setUserActive);
 
 module.exports = router;

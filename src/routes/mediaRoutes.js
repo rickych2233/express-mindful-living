@@ -1,4 +1,7 @@
 const express = require("express");
+const { authenticate, authorize } = require("../middleware/auth");
+const adminOnly = [authenticate, authorize("admin")];
+
 const MediaFile = require("../models/MediaFile");
 const router = express.Router();
 
@@ -12,7 +15,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", adminOnly, async (req, res) => {
   try {
     const mediaFile = await MediaFile.create(req.body);
     res.status(201).json(mediaFile);
@@ -22,7 +25,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", adminOnly, async (req, res) => {
   try {
     const mediaFile = await MediaFile.update(req.params.id, req.body);
     if (!mediaFile) return res.status(404).json({ message: "Media file not found" });
@@ -33,7 +36,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   try {
     const mediaFile = await MediaFile.delete(req.params.id);
     if (!mediaFile) return res.status(404).json({ message: "Media file not found" });

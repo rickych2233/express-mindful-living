@@ -15,16 +15,17 @@ class CommunityCategory {
   }
 
   static async update(id, data) {
+    // Column whitelist — never interpolate raw body keys into SQL.
+    const allowed = ["name","color","count"];
     const fields = [];
     const values = [];
     let idx = 1;
 
-    for (const key in data) {
-      if (data[key] !== undefined) {
+    for (const key of allowed) {
+      if (data[key] === undefined) continue;
         fields.push(`${key} = $${idx}`);
-        values.push(data[key]);
-        idx++;
-      }
+      values.push(data[key]);
+      idx++;
     }
 
     if (fields.length === 0) return null;

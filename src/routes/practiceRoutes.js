@@ -1,4 +1,7 @@
 const express = require("express");
+const { authenticate, authorize } = require("../middleware/auth");
+const adminOnly = [authenticate, authorize("admin")];
+
 const Practice = require("../models/Practice");
 const PracticeCategory = require("../models/PracticeCategory");
 const router = express.Router();
@@ -14,7 +17,7 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-router.post("/categories", async (req, res) => {
+router.post("/categories", adminOnly, async (req, res) => {
   try {
     const category = await PracticeCategory.create(req.body.name);
     res.status(201).json(category);
@@ -24,7 +27,7 @@ router.post("/categories", async (req, res) => {
   }
 });
 
-router.put("/categories/reorder", async (req, res) => {
+router.put("/categories/reorder", adminOnly, async (req, res) => {
   try {
     const { categoryIds } = req.body;
     if (!Array.isArray(categoryIds)) {
@@ -38,7 +41,7 @@ router.put("/categories/reorder", async (req, res) => {
   }
 });
 
-router.put("/categories/:id", async (req, res) => {
+router.put("/categories/:id", adminOnly, async (req, res) => {
   try {
     const category = await PracticeCategory.update(req.params.id, req.body.name);
     if (!category) return res.status(404).json({ message: "Category not found" });
@@ -49,7 +52,7 @@ router.put("/categories/:id", async (req, res) => {
   }
 });
 
-router.delete("/categories/:id", async (req, res) => {
+router.delete("/categories/:id", adminOnly, async (req, res) => {
   try {
     const category = await PracticeCategory.delete(req.params.id);
     if (!category) return res.status(404).json({ message: "Category not found" });
@@ -70,7 +73,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", adminOnly, async (req, res) => {
   try {
     const practice = await Practice.create(req.body);
     res.status(201).json(practice);
@@ -80,7 +83,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/reorder", async (req, res) => {
+router.put("/reorder", adminOnly, async (req, res) => {
   try {
     const { practiceIds } = req.body;
     if (!Array.isArray(practiceIds)) {
@@ -94,7 +97,7 @@ router.put("/reorder", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", adminOnly, async (req, res) => {
   try {
     const practice = await Practice.update(req.params.id, req.body);
     if (!practice) return res.status(404).json({ message: "Practice not found" });
@@ -105,7 +108,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   try {
     const practice = await Practice.delete(req.params.id);
     if (!practice) return res.status(404).json({ message: "Practice not found" });

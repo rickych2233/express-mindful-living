@@ -1,8 +1,32 @@
 const { pool } = require("../config/database");
+const jwt = require("jsonwebtoken");
+
+const ACCESS_SECRET =
+  process.env.AUTH_SECRET || "dev-only-secret-change-me-in-production";
+
+/** Optional auth: resolves req.user when a valid token is present. */
+async function attachUser(req, _res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (token) {
+    try {
+      const payload = jwt.verify(token, ACCESS_SECRET);
+      req.user = { id: payload.sub, email: payload.email };
+    } catch (_err) {
+      // no user — public listing continues
+    }
+  }
+  next();
+}
 
 const getNotes = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM notes ORDER BY id ASC");
+    const notesFilter = req.user
+      ? { text: "SELECT * FROM notes WHERE user_id = $1 ORDER BY id DESC", values: [req.user.id] }
+      : { text: "SELECT * FROM notes ORDER BY id ASC", values: [] };
+    const scoped = await pool.query(notesFilter.text, notesFilter.values);
+    if (req.user) return res.json(scoped.rows);
+    const result = scoped;
     if (result.rows.length === 0) {
       // Mock data insertion for notes
       const mockNotes = [
@@ -43,7 +67,12 @@ const getNotes = async (req, res) => {
 
 const getBookmarks = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM bookmarks ORDER BY id ASC");
+    const bookmarksFilter = req.user
+      ? { text: "SELECT * FROM bookmarks WHERE user_id = $1 ORDER BY id DESC", values: [req.user.id] }
+      : { text: "SELECT * FROM bookmarks ORDER BY id ASC", values: [] };
+    const scoped = await pool.query(bookmarksFilter.text, bookmarksFilter.values);
+    if (req.user) return res.json(scoped.rows);
+    const result = scoped;
     if (result.rows.length === 0) {
       const mockBookmarks = [
         { sentence: "In a world that constantly evolves, cultivating a mindset of adaptability and innovation is essential for personal growth and harmony.", chapter: "Chapter 1", section: "Section 2", date: "21 Feb 2026", amount: 125 },
@@ -129,11 +158,101 @@ const deleteCategory = async (req, res) => {
   }
 };
 
-module.exports = {
-  getNotes,
-  getBookmarks,
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory
+// ---- User-scoped write endpoints (mobile) ----
+
+const createNote = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "login diperlukan" });
+    const { note, highlighted_passage, chapter, section, categories } = req.body || {};
+    if (!note || !String(note).trim()) {
+      return res.status(400).json({ error: "note harus diisi" });
+    }
+    const result = await pool.query(
+      `INSERT INTO notes (user_id, name, avatar, date, chapter, section, note, highlighted_passage, categories)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [
+        req.user.id,
+        req.user.email,
+        null,
+        new Date().toISOString().slice(0, 10),
+        chapter || null,
+        section || null,
+        String(note).trim(),
+        highlighted_passage || null,
+        JSON.stringify(categories || []),
+      ],
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
+
+const updateNote = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "login diperlukan" });
+    const { id } = req.params;
+    const { note, categories } = req.body || {};
+    const result = await pool.query(
+      `UPDATE notes SET note = COALESCE($1, note), categories = COALESCE($2, categories)
+       WHERE id = $3 AND user_id = $4 RETURNING *`,
+      [note ?? null, categories ? JSON.stringify(categories) : null, id, req.user.id],
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "note tidak ditemukan" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const deleteNote = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "login diperlukan" });
+    const result = await pool.query(
+      "DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING id",
+      [req.params.id, req.user.id],
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "note tidak ditemukan" });
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const createBookmark = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "login diperlukan" });
+    const { sentence, chapter, section } = req.body || {};
+    if (!sentence || !String(sentence).trim()) {
+      return res.status(400).json({ error: "sentence harus diisi" });
+    }
+    const result = await pool.query(
+      `INSERT INTO bookmarks (user_id, sentence, chapter, section, date, amount)
+       VALUES ($1, $2, $3, $4, $5, 0) RETURNING *`,
+      [req.user.id, String(sentence).trim(), chapter || null, section || null, new Date().toISOString().slice(0, 10)],
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const deleteBookmark = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "login diperlukan" });
+    const result = await pool.query(
+      "DELETE FROM bookmarks WHERE id = $1 AND user_id = $2 RETURNING id",
+      [req.params.id, req.user.id],
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "bookmark tidak ditemukan" });
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = {
+  getNotes, getBookmarks, getCategories, createCategory, updateCategory, deleteCategory,
+  createNote, updateNote, deleteNote, createBookmark, deleteBookmark, attachUser,
+};
+

@@ -11,6 +11,11 @@ class UserController {
           message: "name, email, dan password harus diisi",
         });
       }
+      if (String(password).length < 8) {
+        return res.status(400).json({
+          message: "password minimal 8 karakter",
+        });
+      }
 
       const existingUser = await User.findByEmail(email);
       if (existingUser) {

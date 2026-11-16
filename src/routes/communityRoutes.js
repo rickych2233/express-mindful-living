@@ -3,7 +3,33 @@ const Discussion = require("../models/Discussion");
 const CommunityCategory = require("../models/CommunityCategory");
 const DiscussionReply = require("../models/DiscussionReply");
 const ReportedDiscussion = require("../models/ReportedDiscussion");
+const { pool } = require("../config/database");
+const { authenticate, authorize } = require("../middleware/auth");
 const router = express.Router();
+
+const adminOnly = [authenticate, authorize("admin")];
+
+async function ownsDiscussion(req, res, next) {
+  const { rows } = await pool.query(
+    "SELECT id FROM discussions WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id],
+  );
+  if (rows.length === 0) {
+    return res.status(404).json({ message: "Discussion not found" });
+  }
+  next();
+}
+
+async function ownsReply(req, res, next) {
+  const { rows } = await pool.query(
+    "SELECT id FROM discussion_replies WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id],
+  );
+  if (rows.length === 0) {
+    return res.status(404).json({ message: "Reply not found" });
+  }
+  next();
+}
 
 router.get("/discussions", async (req, res) => {
   try {
@@ -15,9 +41,22 @@ router.get("/discussions", async (req, res) => {
   }
 });
 
-router.post("/discussions", async (req, res) => {
+router.post("/discussions", authenticate, async (req, res) => {
   try {
-    const discussion = await Discussion.create(req.body);
+    const { message, category, category_color, resonated } = req.body || {};
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ message: "message harus diisi" });
+    }
+    const discussion = await Discussion.create({
+      name: req.user.name || req.user.email,
+      avatar: null,
+      message: String(message).trim(),
+      date: new Date().toISOString(),
+      category,
+      category_color,
+      resonated: resonated || 0,
+      user_id: req.user.id,
+    });
     res.status(201).json(discussion);
   } catch (error) {
     console.error(error);
@@ -25,9 +64,13 @@ router.post("/discussions", async (req, res) => {
   }
 });
 
-router.put("/discussions/:id", async (req, res) => {
+router.put("/discussions/:id", authenticate, ownsDiscussion, async (req, res) => {
   try {
-    const discussion = await Discussion.update(req.params.id, req.body);
+    // Only content fields are editable, never ownership fields.
+    const { message, category, category_color, resonated } = req.body || {};
+    const discussion = await Discussion.update(req.params.id, {
+      message, category, category_color, resonated,
+    });
     if (!discussion) return res.status(404).json({ message: "Discussion not found" });
     res.json(discussion);
   } catch (error) {
@@ -36,7 +79,7 @@ router.put("/discussions/:id", async (req, res) => {
   }
 });
 
-router.delete("/discussions/:id", async (req, res) => {
+router.delete("/discussions/:id", authenticate, ownsDiscussion, async (req, res) => {
   try {
     const discussion = await Discussion.delete(req.params.id);
     if (!discussion) return res.status(404).json({ message: "Discussion not found" });
@@ -101,9 +144,35 @@ router.get("/replies", async (req, res) => {
   }
 });
 
-router.put("/replies/:id", async (req, res) => {
+// Missing until now: mobile sends replies through here.
+router.post("/replies", authenticate, async (req, res) => {
   try {
-    const reply = await DiscussionReply.update(req.params.id, req.body);
+    const { discussion_id, message } = req.body || {};
+    if (!discussion_id || !message || !String(message).trim()) {
+      return res
+        .status(400)
+        .json({ message: "discussion_id dan message harus diisi" });
+    }
+    const reply = await DiscussionReply.create({
+      discussion_id,
+      name: req.user.name || req.user.email,
+      avatar: null,
+      message: String(message).trim(),
+      date: new Date().toISOString(),
+      status: "Visible",
+      user_id: req.user.id,
+    });
+    res.status(201).json(reply);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.put("/replies/:id", authenticate, ownsReply, async (req, res) => {
+  try {
+    const { message } = req.body || {};
+    const reply = await DiscussionReply.update(req.params.id, { message });
     if (!reply) return res.status(404).json({ message: "Reply not found" });
     res.json(reply);
   } catch (error) {
@@ -112,7 +181,7 @@ router.put("/replies/:id", async (req, res) => {
   }
 });
 
-router.delete("/replies/:id", async (req, res) => {
+router.delete("/replies/:id", authenticate, ownsReply, async (req, res) => {
   try {
     const reply = await DiscussionReply.delete(req.params.id);
     if (!reply) return res.status(404).json({ message: "Reply not found" });
