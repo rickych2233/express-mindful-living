@@ -1,0 +1,54 @@
+name: Deploy Backend to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Test & Deploy Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Setup SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST || '187.124.129.55' }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" satyatech.org >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Package & deploy to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST || '187.124.129.55' }}
+          SSH_USER: ${{ secrets.SSH_USER || 'root' }}
+        run: |
+          DEPLOY_RELEASE="$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::7}"
+          ARCHIVE="/tmp/satya-backend-${DEPLOY_RELEASE}.tgz"
+          tar -czf "$ARCHIVE" index.js src package.json package-lock.json ecosystem.config.js \
+            deployment/preflight.cjs deployment/backup-database.cjs
+          scp -i ~/.ssh/deploy_key "$ARCHIVE" "${SSH_USER}@${SSH_HOST}:/tmp/satya-backend-${DEPLOY_RELEASE}.tgz"
+          ssh -i ~/.ssh/deploy_key "${SSH_USER}@${SSH_HOST}" "bash -s -- '$DEPLOY_RELEASE'" < deployment/backend-remote.sh
