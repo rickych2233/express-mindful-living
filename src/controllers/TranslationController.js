@@ -17,13 +17,24 @@ class TranslationController {
       const results = {};
       const errors = {};
       
-      // We can run these in parallel
+      // We can run these in parallel, retrying once per target on transient provider failure.
       const translationPromises = [...new Set(targets)].map(async (target) => {
-        try {
-          results[target] = source === target ? text : await translateContent(text, source, target, translate);
-        } catch (err) {
-          console.error(`Translation error for target ${target}:`, err);
-          errors[target] = 'Terjemahan gagal. Silakan coba lagi.';
+        if (source === target) {
+          results[target] = text;
+          return;
+        }
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            results[target] = await translateContent(text, source, target, translate);
+            return;
+          } catch (err) {
+            if (attempt === 0) {
+              await new Promise((r) => setTimeout(r, 300));
+              continue;
+            }
+            console.error(`Translation error for target ${target}:`, err);
+            errors[target] = 'Terjemahan gagal. Silakan coba lagi.';
+          }
         }
       });
 
