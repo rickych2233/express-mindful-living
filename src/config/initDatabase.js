@@ -358,6 +358,21 @@ async function initDatabase() {
     DELETE FROM roles
     WHERE name != 'Super Admin'
   `);
+
+  // Global app configuration (JSONB values), remote-controlled from the
+  // server so the mobile app ships no hardcoded business limits.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key VARCHAR(50) PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.query(`
+    INSERT INTO app_settings (key, value)
+    VALUES ('free_chapter_limit', '4'::jsonb)
+    ON CONFLICT (key) DO NOTHING
+  `);
 }
 
 module.exports = { initDatabase };

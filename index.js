@@ -4,6 +4,7 @@ dotenv.config();
 const express = require("express");
 const cors = require("cors");
 const { initDatabase } = require("./src/config/initDatabase");
+const { pool } = require("./src/config/database");
 const userRoutes = require("./src/routes/userRoutes");
 const authRoutes = require("./src/routes/authRoutes");
 const chapterRoutes = require("./src/routes/chapterRoutes");
@@ -16,6 +17,7 @@ const notesRoutes = require("./src/routes/notesRoutes");
 const uploadRoutes = require("./src/routes/uploadRoutes");
 const dashboardRoutes = require("./src/routes/dashboardRoutes");
 const translationRoutes = require("./src/routes/translationRoutes");
+const notificationRoutes = require("./src/routes/notificationRoutes");
 const path = require("path");
 
 const app = express();
@@ -89,7 +91,9 @@ app.get("/", (req, res) => {
 const { ensureRefreshTable } = require("./src/controllers/AuthController");
 const { authenticate, authorize } = require("./src/middleware/auth");
 
+const { router: progressRoutes, ensureProgressTable } = require("./src/routes/progressRoutes");
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/progress", progressRoutes);
 app.use("/api/users", userRoutes);
 // Content management: reads are public for the mobile app, writes are
 // admin only (role via ADMIN_EMAILS env). Route files keep their own
@@ -105,6 +109,7 @@ app.use("/api/dashboard", adminOnly, dashboardRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api", notesRoutes); // Provides /api/notes, /api/bookmarks, /api/note-categories
 app.use("/api/translate", translationRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 (async () => {
   try {
@@ -112,6 +117,12 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
     await ensureRefreshTable();
     const { ensureCodesTable } = require("./src/controllers/OtpController");
     await ensureCodesTable();
+    await ensureProgressTable();
+    const { ensureRoles } = require("./src/middleware/auth");
+    await ensureRoles();
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT
+    `);
     app.listen(PORT, () => {
       console.log(`Server berjalan di port ${PORT}`);
     });
