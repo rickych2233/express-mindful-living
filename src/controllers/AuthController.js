@@ -2,7 +2,13 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { pool } = require("../config/database");
 const User = require("../models/User");
+const { AppSetting } = require("../models/AppSetting");
 const { signAccessToken, authenticate } = require("../middleware/auth");
+const {
+  appwriteReady,
+  verifyJwt,
+  sessionForUser,
+} = require("../services/appwrite");
 
 const REFRESH_TTL_DAYS = 30;
 
@@ -66,6 +72,8 @@ function publicUser(u) {
     donation_amount: u.donation_amount,
     active: u.active,
     biometric_enabled: u.biometric_enabled,
+    avatar_url: u.avatar_url,
+    role: u.role,
     created_at: u.created_at,
   };
 }
@@ -100,9 +108,13 @@ class AuthController {
       });
       return res.json({ accessToken, user: publicUser(user) });
     }
+    // Mobile: one-time secret the app redeems for an Appwrite session,
+    // which push delivery (Appwrite Push) subscribes to.
+    const appwriteSession = await sessionForUser(user);
     return res.json({
       accessToken,
       refreshToken: rawRefresh,
+      appwriteSession,
       user: publicUser(user),
     });
   }
@@ -148,10 +160,142 @@ class AuthController {
        WHERE user_id = $1 AND revoked_at IS NULL`,
       [req.user.id],
     );
+    // The Appwrite session is deleted by the mobile client itself.
     res.clearCookie("refresh_token", { path: "/api/auth" });
     return res.json({ message: "logout berhasil" });
   }
 
+  /**
+   * POST /api/auth/social — Google/Apple sign-in. The client creates an
+   * Appwrite session natively, sends the Appwrite JWT, and this exchanges
+   * it for the same JWT session pair as password login.
+   */
+  static async social(req, res) {
+    const { idToken, provider } = req.body || {};
+    if (!idToken) {
+      return res.status(400).json({ message: "idToken harus diisi" });
+    }
+    if (!appwriteReady()) {
+      return res
+        .status(503)
+        .json({ message: "login sosial belum dikonfigurasi di server" });
+    }
+    let decoded;
+    try {
+      decoded = await verifyJwt(idToken);
+    } catch {
+      return res.status(401).json({ message: "idToken tidak valid" });
+    }
+    if (!decoded.email) {
+      return res
+        .status(400)
+        .json({ message: "akun sosial tidak memiliki email" });
+    }
+    await ensureSocialColumns();
+
+    // Link by appwrite_id first, then by email (existing account upgrade).
+    const { rows } = await pool.query(
+      `SELECT * FROM users WHERE appwrite_id = $1 OR email = $2 LIMIT 1`,
+      [decoded.appwriteId, decoded.email],
+    );
+    let user = rows[0];
+    if (!user) {
+      const inserted = await pool.query(
+        `INSERT INTO users (name, email, password_hash, appwrite_id, auth_provider)
+         VALUES ($1, $2, NULL, $3, $4)
+         RETURNING *`,
+        [decoded.name, decoded.email, decoded.appwriteId, provider || "social"],
+      );
+      user = inserted.rows[0];
+    } else if (!user.appwrite_id) {
+      const updated = await pool.query(
+        `UPDATE users SET appwrite_id = $1, auth_provider = $2 WHERE id = $3
+         RETURNING *`,
+        [decoded.appwriteId, provider || "social", user.id],
+      );
+      user = updated.rows[0];
+    }
+    if (user.active === false) {
+      return res.status(401).json({ message: "akun tidak aktif" });
+    }
+    const accessToken = signAccessToken(user);
+    const rawRefresh = await issueRefreshToken(user.id);
+    // No appwriteSession here: the mobile client already holds the Appwrite
+    // session it created before calling this endpoint.
+    return res.json({
+      accessToken,
+      refreshToken: rawRefresh,
+      user: publicUser(user),
+    });
+  }
+}
+
+async function ensureSocialColumns() {
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS appwrite_id TEXT UNIQUE,
+    ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20);
+  `);
+  // Social accounts have no password; existing rows keep theirs.
+  await pool.query(`
+    ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+  `);
+}
+
+/** PUT /api/auth/profile — self-service profile update (name only). */
+async function updateProfile(req, res) {
+  const { name } = req.body || {};
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ message: "name harus diisi" });
+  }
+  const { rows } = await pool.query(
+    `UPDATE users SET name = $1 WHERE id = $2 RETURNING id, name, email, donation_amount, active, biometric_enabled, created_at`,
+    [String(name).trim(), req.user.id],
+  );
+  if (rows.length === 0) return res.status(404).json({ message: "user tidak ditemukan" });
+  res.json({ user: rows[0] });
+}
+
+/** GET /api/auth/entitlement — premium unlock state for the caller. */
+async function entitlement(req, res) {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: "user tidak ditemukan" });
+  // shortcut: donation-based until a real payment provider lands
+  const unlocked = Number(user.donation_amount ?? 0) > 0;
+  res.json({
+    unlocked,
+    donation_amount: user.donation_amount,
+    freeChapterLimit: Number((await AppSetting.get("free_chapter_limit")) ?? 4),
+    subscribeUrl: process.env.SUBSCRIBE_URL || "https://satyatech.org/subscribe",
+  });
+}
+
+/** GET /api/auth/profile/avatar — the caller's avatar URL. */
+async function getAvatar(req, res) {
+  const { rows } = await pool.query(
+    `SELECT avatar_url FROM users WHERE id = $1`,
+    [req.user.id],
+  );
+  res.json({ avatarUrl: rows[0]?.avatar_url ?? null });
+}
+
+/** PUT /api/auth/profile/avatar — multipart "file" (user role, images only). */
+async function uploadAvatar(req, res) {
+  const file = req.file;
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!file) return res.status(400).json({ message: "file harus diisi" });
+  if (!allowed.includes(file.mimetype)) {
+    return res.status(400).json({ message: "hanya jpg/png/webp" });
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return res.status(400).json({ message: "maksimal 5MB" });
+  }
+  const url = `/uploads/${file.filename}`;
+  await pool.query(`UPDATE users SET avatar_url = $1 WHERE id = $2`, [
+    url,
+    req.user.id,
+  ]);
+  res.json({ avatarUrl: url });
 }
 
 /** GET /me handler (behind authenticate). */
@@ -161,4 +305,15 @@ async function me(req, res) {
   res.json({ user: publicUser(user) });
 }
 
-module.exports = { AuthController, ensureRefreshTable, publicUser, me };
+module.exports = {
+  AuthController,
+  ensureRefreshTable,
+  issueRefreshToken,
+  publicUser,
+  ensureSocialColumns,
+  me,
+  updateProfile,
+  entitlement,
+  getAvatar,
+  uploadAvatar,
+};

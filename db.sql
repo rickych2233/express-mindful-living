@@ -55,6 +55,16 @@ ON CONFLICT (email) DO UPDATE SET
   password_hash = EXCLUDED.password_hash,
   donation_amount = EXCLUDED.donation_amount;
 
+CREATE TABLE IF NOT EXISTS app_settings (
+  key VARCHAR(50) PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO app_settings (key, value)
+VALUES ('free_chapter_limit', '4'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS chapters (
   id SERIAL PRIMARY KEY,
   chapter_order INTEGER NOT NULL UNIQUE,

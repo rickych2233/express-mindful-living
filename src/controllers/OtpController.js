@@ -5,6 +5,7 @@ const { pool } = require("../config/database");
 const User = require("../models/User");
 const { signAccessToken } = require("../middleware/auth");
 const { issueRefreshToken, publicUser } = require("./AuthController");
+const { sessionForUser } = require("../services/appwrite");
 
 const sha256 = (s) => crypto.createHash("sha256").update(s).digest("hex");
 const OTP_TTL_MINUTES = 10;
@@ -105,6 +106,7 @@ async function verifyOtp(req, res) {
   return res.json({
     accessToken: signAccessToken(user),
     refreshToken: rawRefresh,
+    appwriteSession: await sessionForUser(user),
     user: publicUser(user),
   });
 }
