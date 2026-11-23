@@ -9,6 +9,23 @@ const router = express.Router();
 
 const adminOnly = [authenticate, authorize("admin")];
 
+// Push to the discussion owner when someone replies. Runs after the
+// response; failures logged, never surfaced.
+async function notifyDiscussionOwner(discussionId, replier) {
+  const { notifyUser } = require("../services/appwrite");
+  const { rows } = await pool.query(
+    "SELECT user_id, name FROM discussions WHERE id = $1",
+    [discussionId],
+  );
+  const discussion = rows[0];
+  if (!discussion || discussion.user_id === replier.id) return;
+  await notifyUser(discussion.user_id, {
+    title: "Balasan baru",
+    body: `${replier.name || replier.email} membalas discussion "${discussion.name}"`,
+    data: { type: "discussion_reply", discussionId: String(discussionId) },
+  });
+}
+
 async function ownsDiscussion(req, res, next) {
   const { rows } = await pool.query(
     "SELECT id FROM discussions WHERE id = $1 AND user_id = $2",
@@ -163,6 +180,10 @@ router.post("/replies", authenticate, async (req, res) => {
       user_id: req.user.id,
     });
     res.status(201).json(reply);
+    // Notify the discussion owner (never notify yourself).
+    notifyDiscussionOwner(discussion_id, req.user).catch((e) =>
+      console.error("[push] reply notify failed:", e.message),
+    );
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

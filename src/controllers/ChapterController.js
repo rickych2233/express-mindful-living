@@ -1,5 +1,6 @@
 const Chapter = require("../models/Chapter");
 const Section = require("../models/Section");
+const { AppSetting } = require("../models/AppSetting");
 
 async function saveSections(chapterId, sections, status, client) {
   if (sections === undefined) return;
@@ -58,9 +59,13 @@ class ChapterController {
   static async getAllChapters(req, res) {
     try {
       const chapters = await Chapter.findAll();
+      const freeChapterLimit = Number(
+        (await AppSetting.get("free_chapter_limit")) ?? 4
+      );
 
       return res.status(200).json({
         message: "data chapters berhasil diambil",
+        freeChapterLimit,
         chapters,
       });
     } catch (error) {
@@ -256,6 +261,35 @@ class ChapterController {
       return res.status(500).json({
         message: "terjadi kesalahan server",
       });
+    }
+  }
+  /** GET /api/chapters/settings — global chapter access config. */
+  static async getSettings(req, res) {
+    try {
+      const freeChapterLimit = Number(
+        (await AppSetting.get("free_chapter_limit")) ?? 4
+      );
+      return res.json({ freeChapterLimit });
+    } catch (error) {
+      console.error("GET_SETTINGS_ERROR", error);
+      return res.status(500).json({ message: "terjadi kesalahan server" });
+    }
+  }
+
+  /** PATCH /api/chapters/settings — admin updates the free chapter cap. */
+  static async updateSettings(req, res) {
+    try {
+      const limit = Number(req.body?.freeChapterLimit);
+      if (!Number.isInteger(limit) || limit < 0 || limit > 99) {
+        return res.status(400).json({
+          message: "freeChapterLimit harus integer 0-99",
+        });
+      }
+      await AppSetting.set("free_chapter_limit", limit);
+      return res.json({ freeChapterLimit: limit });
+    } catch (error) {
+      console.error("UPDATE_SETTINGS_ERROR", error);
+      return res.status(500).json({ message: "terjadi kesalahan server" });
     }
   }
 }

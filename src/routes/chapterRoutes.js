@@ -9,6 +9,8 @@ const router = express.Router();
 
 // Chapter collection routes
 router.post("/", adminOnly, ChapterController.createChapter);
+router.get("/settings", ChapterController.getSettings);
+router.patch("/settings", adminOnly, ChapterController.updateSettings);
 router.get("/", ChapterController.getAllChapters);
 router.patch("/reorder", adminOnly, ChapterController.reorderChapters);
 router.put("/:id/sections/reorder", adminOnly, ChapterController.reorderSections);
